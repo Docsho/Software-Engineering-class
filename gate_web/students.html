@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Students — IUGB Gate</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="header-left">
+      <img src="assets/iugb.png" class="logo" alt="Logo" />
+      <span class="brand"> IUGB Gate</span>
+    </div>
+
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="users.html">Users</a>
+      <a id="logoutBtn" href="#">Logout</a>
+    </nav>
+  </header>
+
+
+
+  <main class="container">
+    <h2>Student Management</h2>
+
+    <!-- ADD STUDENT FORM -->
+    <section class="card">
+      <h3>Create Student</h3>
+      <form id="createStudentForm">
+        <label>Student ID <input id="s_id" required /></label>
+        <label>First Name <input id="s_first" required /></label>
+        <label>Last Name <input id="s_last" required /></label>
+        <label>
+          Program
+          <select id="s_prog" required>
+            <option value="">-- Select Program --</option>
+            <option value="CSC">Computer Science </option>
+            <option value="MET">Mechanical Engineering & Technology </option>
+            <option value="Data Science">Data Science</option>
+            <option value="BBA">Business Administration </option>
+            <option value="Finance">Finance</option>
+            <option value="Economics">Economics</option>
+            <option value="Math">Mathematics</option>
+            <option value="Political Science">Political Science</option>
+          </select>
+        </label>
+
+        <label>
+          Level
+          <select id="s_level" required>
+            <option value="">-- Select Level --</option>
+            <option value="Freshman">Freshman</option>
+            <option value="Sophomore">Sophomore</option>
+            <option value="Junior">Junior</option>
+            <option value="Senior">Senior</option>
+          </select>
+        </label>
+        <label>Email <input id="s_email" required type="email" /></label>
+
+        <button class="btn" type="submit">Create</button>
+      </form>
+    </section>
+
+    <!-- STUDENT LIST SECTION -->
+    <section class="card">
+      <h3>Students List</h3>
+
+      <div style="margin-bottom:10px;">
+        <input id="searchInput" placeholder="Search by ID, name, email" style="width:70%; padding:8px;" />
+        <button class="btn" id="searchBtn">Search</button>
+      </div>
+
+      <table class="table" id="studentsTable">
+        <thead>
+          <tr>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Program</th>
+            <th>Level</th>
+            <th>Email</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div style="display:flex; justify-content:space-between; padding-top:10px;">
+        <button class="btn small" id="prevBtn">Previous</button>
+        <button class="btn small" id="nextBtn">Next</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script>
+    const me = requireAuth();
+    if (![1,2].includes(me.role)) {
+      alert("Only admin or root can access students page");
+      window.location.href = "dashboard.html";
+    }
+
+    // Student listing variables
+    let LIMIT = 20;
+    let OFFSET = 0;
+    let CURRENT_SEARCH = "";
+
+    const tbody = document.querySelector("#studentsTable tbody");
+
+    async function loadStudents() {
+      tbody.innerHTML = "<tr><td colspan='6'>Loading...</td></tr>";
+
+      let url = `/public/students_list.php?limit=${LIMIT}&offset=${OFFSET}`;
+      if (CURRENT_SEARCH.trim() !== "") {
+        url += `&search=${encodeURIComponent(CURRENT_SEARCH)}`;
+      }
+
+      try {
+        const data = await apiGet(url);
+        renderTable(data.students);
+
+        // pagination buttons
+        document.getElementById("prevBtn").disabled = OFFSET === 0;
+        document.getElementById("nextBtn").disabled = OFFSET + LIMIT >= data.total;
+
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan='6'>Error loading students</td></tr>`;
+      }
+    }
+
+    function renderTable(students) {
+      tbody.innerHTML = "";
+
+      if (students.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='6'>No students found</td></tr>";
+        return;
+      }
+
+      students.forEach(st => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td>${st.student_id}</td>
+          <td>${st.first_name} ${st.last_name}</td>
+          <td>${st.program}</td>
+          <td>${st.level}</td>
+          <td>${st.email}</td>
+          <td style="text-align:right">
+            <button class="btn small editBtn" data-id="${st.student_id}">Edit</button>
+            <button class="btn small deleteBtn" data-id="${st.student_id}">Delete</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Pagination
+    document.getElementById("nextBtn").onclick = () => {
+      OFFSET += LIMIT;
+      loadStudents();
+    };
+
+    document.getElementById("prevBtn").onclick = () => {
+      OFFSET = Math.max(0, OFFSET - LIMIT);
+      loadStudents();
+    };
+
+    // Search
+    document.getElementById("searchBtn").onclick = () => {
+      CURRENT_SEARCH = document.getElementById("searchInput").value.trim();
+      OFFSET = 0;
+      loadStudents();
+    };
+
+    // Add Student
+    document.getElementById("createStudentForm").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const payload = {
+        student_id: s_id.value.trim(),
+        first_name: s_first.value.trim(),
+        last_name: s_last.value.trim(),
+        program: s_prog.value.trim(),
+        level: s_level.value.trim(),
+        email: s_email.value.trim(),
+      };
+
+      try {
+        await apiPost("/public/student_add.php", payload);
+        alert("Student added successfully");
+        e.target.reset();
+        loadStudents();
+      } catch (err) {
+        alert("Error: " + (err.message || JSON.stringify(err)));
+      }
+    });
+
+    // Edit / Delete actions
+    document.addEventListener("click", async e => {
+      const id = e.target.dataset.id;
+
+      if (e.target.classList.contains("deleteBtn")) {
+        if (!confirm("Delete student " + id + "?")) return;
+
+        try {
+          await apiDelete("/public/student_delete.php", { student_id: id });
+          alert("Deleted");
+          loadStudents();
+        } catch (err) {
+          alert("Error: " + (err.message || JSON.stringify(err)));
+        }
+      }
+
+      if (e.target.classList.contains("editBtn")) {
+        // simple edit UI using prompts
+        const first = prompt("New first name:");
+        const last = prompt("New last name:");
+        const program = prompt("New program:");
+        const level = prompt("New level:");
+
+        if (!first || !last || !program || !level) {
+          return alert("Edit cancelled or invalid fields");
+        }
+
+        const payload = {
+          student_id: id,
+          first_name: first,
+          last_name: last,
+          program: program,
+          level: level,
+          email: "" // email not changed here
+        };
+
+        try {
+          await apiPut("/public/student_update.php", payload);
+          alert("Student updated");
+          loadStudents();
+        } catch (err) {
+          alert("Error updating student: " + (err.message || JSON.stringify(err)));
+        }
+      }
+    });
+
+    // Logout
+    document.getElementById("logoutBtn").onclick = async (e) => {
+      e.preventDefault();
+      try { await apiPost("/public/logout.php", {}); } catch (e) {}
+      doLogout();
+    };
+
+    // Initial load
+    loadStudents();
+  </script>
+
+</body>
+</html>
