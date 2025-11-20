@@ -1,0 +1,3 @@
+<?php
+$JWT_SECRET = "YOUR_SECRET_KEY_CHANGE_THIS";
+$JWT_EXPIRE = 3600; // 1 hour
