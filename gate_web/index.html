@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>IUGB Gate - Login</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <main class="container">
+    <h1><img src="assets/iugb.png" class="logo" alt="logo"> IUGB Security - Admin Portal</h1>
+
+    <div id="alert" class="hidden"></div>
+
+    <form id="loginForm" class="card">
+      <label>
+        Username
+        <input type="text" id="username" required />
+      </label>
+
+      <label>
+        Password
+        <input type="password" id="password" required />
+      </label>
+
+      <button type="submit" class="btn">Login</button>
+    </form>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const alertEl = document.getElementById('alert');
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      alertEl.classList.add('hidden');
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await apiPost('/public/login.php', { username, password });
+        // response: { token, role, full_name }
+        localSaveToken(res.token);
+        localSaveUser({ role: res.role, full_name: res.full_name, username });
+        // redirect to dashboard
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showAlert(err.message || JSON.stringify(err));
+      }
+    });
+
+    function showAlert(text) {
+      alertEl.textContent = text;
+      alertEl.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
