@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard — IUGB Gate</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="header-left">
+      <img src="assets/iugb.png" class="logo" alt="logo" />
+      <span class="brand"> IUGB Gate</span>
+    </div>
+
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="users.html">Users</a>
+      <a id="logoutBtn" href="#">Logout</a>
+    </nav>
+  </header>
+
+
+  <main class="container">
+    <h2 id="welcome">Welcome</h2>
+
+    <section id="rootPanel" class="card hidden">
+      <h3>Root Admin Controls</h3>
+      <p>Create or manage admin and gatekeeper accounts.</p>
+      <a href="users.html" class="btn">Manage Users</a>
+    </section>
+
+    <section id="adminPanel" class="card hidden">
+      <h3>Student Management</h3>
+      <p>Add and manage student records.</p>
+      <a href="students.html" class="btn">Manage Students</a>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // require login
+    const user = requireAuth(); // throws/redirects to login if no token
+    document.getElementById('welcome').textContent = `Hello, ${user.full_name || user.username}`;
+
+    // role: 1=root, 2=admin, 3=gatekeeper
+    if (user.role == 1) {
+      document.getElementById('rootPanel').classList.remove('hidden');
+      document.getElementById('adminPanel').classList.remove('hidden');
+    } else if (user.role == 2) {
+      document.getElementById('adminPanel').classList.remove('hidden');
+      // hide users link for admin
+      document.getElementById('linkUsers').style.display = 'none';
+    } else {
+      // gatekeeper shouldn't use this site — redirect to login
+      alert('Access denied: only admin/root allowed here.');
+      doLogout();
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async e => {
+      e.preventDefault();
+      try {
+        await apiPost('/public/logout.php', {});
+      } catch (e) {
+        // ignore errors
+      } finally {
+        doLogout();
+      }
+    });
+  </script>
+</body>
+</html>

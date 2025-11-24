@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Users — IUGB Gate</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="header-left">
+      <img src="assets/iugb.png" class="logo" alt="Logo" />
+      <span class="brand"> IUGB Gate</span>
+    </div>
+
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="users.html">Users</a>
+      <a id="logoutBtn" href="#">Logout</a>
+    </nav>
+  </header>
+
+
+  <main class="container">
+    <h2>Manage Users</h2>
+
+    <section class="card">
+      <h3>Create user</h3>
+      <form id="createUserForm">
+        <label>Username <input id="u_username" required /></label>
+        <label>Full name <input id="u_fullname" required /></label>
+        <label>Email <input id="u_email" required type="email" /></label>
+        <label>Role
+          <select id="u_role">
+            <option value="1">Root Admin</option>
+            <option value="2">Admin</option>
+            <option value="3">Gatekeeper</option>
+          </select>
+        </label>
+        <label>Password <input id="u_password" required type="password" /></label>
+        <button class="btn" type="submit">Create</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>Existing users</h3>
+      <table id="usersTable" class="table">
+        <thead><tr><th>ID</th><th>Username</th><th>Full name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    const me = requireAuth();
+    if (me.role != 1) {
+      alert('Only root admin can manage users');
+      window.location.href = 'dashboard.html';
+    }
+
+    const form = document.getElementById('createUserForm');
+    const tbody = document.querySelector('#usersTable tbody');
+
+    async function loadUsers() {
+      try {
+        // we don't have a GET /users endpoint in your API (we recommended it earlier).
+        // If you implemented GET /api/users, call it. Otherwise show placeholder.
+        const res = await apiGet('/public/users_list.php'); // you may implement this
+        tbody.innerHTML = '';
+        res.users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${u.id}</td><td>${u.username}</td><td>${u.full_name}</td><td>${u.email}</td><td>${u.role_id}</td>
+            <td>
+              <button data-id="${u.id}" class="btn small deleteBtn">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6">Can't load users. Make sure you implemented users_list.php</td></tr>`;
+      }
+    }
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const payload = {
+        username: document.getElementById('u_username').value.trim(),
+        full_name: document.getElementById('u_fullname').value.trim(),
+        email: document.getElementById('u_email').value.trim(),
+        role_id: parseInt(document.getElementById('u_role').value, 10),
+        password: document.getElementById('u_password').value
+      };
+      try {
+        const r = await apiPost('/public/user_add.php', payload);
+        alert('User created with id ' + r.id);
+        form.reset();
+        loadUsers();
+      } catch (err) {
+        alert('Error: ' + (err.message || JSON.stringify(err)));
+      }
+    });
+
+    document.addEventListener('click', async e => {
+      if (e.target.matches('.deleteBtn')) {
+        const id = e.target.dataset.id;
+        if (!confirm('Delete user ' + id + '?')) return;
+        try {
+          await apiDelete('/public/user_delete.php', { user_id: parseInt(id, 10) });
+          alert('Deleted');
+          loadUsers();
+        } catch (err) {
+          alert('Error deleting: ' + (err.message || JSON.stringify(err)));
+        }
+      }
+    });
+
+    // initial load
+    loadUsers();
+
+    document.getElementById('logoutBtn').addEventListener('click', async e => {
+      e.preventDefault(); await apiPost('/public/logout.php', {}); doLogout();
+    });
+  </script>
+</body>
+</html>
